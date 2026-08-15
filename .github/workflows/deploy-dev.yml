@@ -1,0 +1,34 @@
+name: Deploy to DEV
+
+on:
+  push:
+    branches: [ develop ]
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCP_PROJECT_ID: retailhub-services
+  GCP_WORKLOAD_IDENTITY_PROVIDER: projects/427578819714/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+  GCP_SERVICE_ACCOUNT: github-actions@retailhub-services.iam.gserviceaccount.com
+  ARTIFACT_REGISTRY: us-central1-docker.pkg.dev
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - id: auth
+      uses: google-github-actions/auth@v1
+      with:
+        workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+        service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+    - uses: google-github-actions/setup-gcloud@v1
+    - run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY }}
+    - run: |
+        for service in order payment loyalty user product; do
+          docker build -t ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/retailhub/$service:dev-${{ github.sha }} $service-service/
+          docker push ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/retailhub/$service:dev-${{ github.sha }}
+        done
+    - run: echo "✅ DEV deployment complete"

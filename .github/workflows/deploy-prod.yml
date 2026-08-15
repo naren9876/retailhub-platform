@@ -1,8 +1,8 @@
-name: Deploy to DEV
+name: Deploy to PRODUCTION
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ main ]
 
 permissions:
   contents: read
@@ -28,7 +28,7 @@ jobs:
     - run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY }}
     - run: |
         for service in order payment loyalty user product; do
-          docker build -t ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/retailhub/$service:dev-${{ github.sha }} $service-service/
-          docker push ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/retailhub/$service:dev-${{ github.sha }}
+          docker build -t ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/retailhub/$service:prod-${{ github.sha }} $service-service/
+          docker push ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/retailhub/$service:prod-${{ github.sha }}
         done
-    - run: echo "✅ DEV deployment complete"
+    - run: echo "✅ PROD deployment complete"

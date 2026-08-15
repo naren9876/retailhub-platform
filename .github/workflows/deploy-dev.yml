@@ -13,10 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - run: echo "${{ secrets.GCP_SA_KEY }}" | base64 -d > /tmp/key.json
+    - id: decode
+      run: echo "GCP_KEY=$(echo '${{ secrets.GCP_SA_KEY }}' | base64 -d)" >> $GITHUB_OUTPUT
     - uses: google-github-actions/auth@v2
       with:
-        credentials_json_file: /tmp/key.json
+        credentials_json: ${{ steps.decode.outputs.GCP_KEY }}
     - uses: google-github-actions/setup-gcloud@v2
     - run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY }}
     - run: |

@@ -1,0 +1,71 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+bases:
+  - ../../base/
+
+namespace: qa
+
+# QA = 2 replicas
+replicas:
+  - name: order-service
+    count: 2
+  - name: payment-service
+    count: 2
+  - name: loyalty-service
+    count: 2
+  - name: user-service
+    count: 2
+  - name: product-service
+    count: 2
+
+# Patch resources (medium-sized for QA)
+patchesStrategicMerge:
+  - resources-patch.yaml
+
+configMapGenerator:
+  - name: order-config
+    behavior: create
+    literals:
+      - ENVIRONMENT=qa
+      - DATABASE_URL=postgresql://order-postgres.c.retailhub-services.internal:5432/order_qa_db
+      - LOG_LEVEL=INFO
+      - API_ENDPOINT=http://api-qa.internal
+      - PAYMENT_SERVICE_URL=http://payment-service.payment:5004
+      - LOYALTY_SERVICE_URL=http://loyalty-service.loyalty:5006
+  - name: payment-config
+    behavior: create
+    literals:
+      - ENVIRONMENT=qa
+      - DATABASE_URL=postgresql://payment-postgres.c.retailhub-services.internal:5432/payment_qa_db
+      - LOG_LEVEL=INFO
+      - API_ENDPOINT=http://api-qa.internal
+      - ORDER_SERVICE_URL=http://order-service.order:5003
+  - name: loyalty-config
+    behavior: create
+    literals:
+      - ENVIRONMENT=qa
+      - DATABASE_URL=postgresql://loyalty-postgres.c.retailhub-services.internal:5432/loyalty_qa_db
+      - LOG_LEVEL=INFO
+      - API_ENDPOINT=http://api-qa.internal
+      - ORDER_SERVICE_URL=http://order-service.order:5003
+      - USER_SERVICE_URL=http://user-service.user:5001
+  - name: user-config
+    behavior: create
+    literals:
+      - ENVIRONMENT=qa
+      - DATABASE_URL=postgresql://user-postgres.c.retailhub-services.internal:5432/user_qa_db
+      - LOG_LEVEL=INFO
+      - API_ENDPOINT=http://api-qa.internal
+  - name: product-config
+    behavior: create
+    literals:
+      - ENVIRONMENT=qa
+      - DATABASE_URL=postgresql://product-postgres.c.retailhub-services.internal:5432/product_qa_db
+      - LOG_LEVEL=INFO
+      - API_ENDPOINT=http://api-qa.internal
+
+commonLabels:
+  environment: qa
+  team: retailhub
+  tier: staging

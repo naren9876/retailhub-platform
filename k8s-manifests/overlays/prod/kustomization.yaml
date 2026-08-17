@@ -1,0 +1,73 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+bases:
+  - ../../base/
+
+namespace: prod
+
+# PROD = 3 replicas for HA
+replicas:
+  - name: order-service
+    count: 3
+  - name: payment-service
+    count: 3
+  - name: loyalty-service
+    count: 3
+  - name: user-service
+    count: 3
+  - name: product-service
+    count: 3
+
+# Patch resources (large for PROD)
+patchesStrategicMerge:
+  - resources-patch.yaml
+
+# Use secretGenerator for PROD (not ConfigMap!)
+secretGenerator:
+  - name: order-secrets
+    behavior: create
+    literals:
+      - ENVIRONMENT=prod
+      - DATABASE_URL=postgresql://order-postgres.c.retailhub-services.internal:5432/order_prod_db
+      - LOG_LEVEL=WARN
+      - API_ENDPOINT=https://api.retailhub.com
+      - PAYMENT_SERVICE_URL=http://payment-service.payment:5004
+      - LOYALTY_SERVICE_URL=http://loyalty-service.loyalty:5006
+  - name: payment-secrets
+    behavior: create
+    literals:
+      - ENVIRONMENT=prod
+      - DATABASE_URL=postgresql://payment-postgres.c.retailhub-services.internal:5432/payment_prod_db
+      - LOG_LEVEL=WARN
+      - API_ENDPOINT=https://api.retailhub.com
+      - ORDER_SERVICE_URL=http://order-service.order:5003
+  - name: loyalty-secrets
+    behavior: create
+    literals:
+      - ENVIRONMENT=prod
+      - DATABASE_URL=postgresql://loyalty-postgres.c.retailhub-services.internal:5432/loyalty_prod_db
+      - LOG_LEVEL=WARN
+      - API_ENDPOINT=https://api.retailhub.com
+      - ORDER_SERVICE_URL=http://order-service.order:5003
+      - USER_SERVICE_URL=http://user-service.user:5001
+  - name: user-secrets
+    behavior: create
+    literals:
+      - ENVIRONMENT=prod
+      - DATABASE_URL=postgresql://user-postgres.c.retailhub-services.internal:5432/user_prod_db
+      - LOG_LEVEL=WARN
+      - API_ENDPOINT=https://api.retailhub.com
+  - name: product-secrets
+    behavior: create
+    literals:
+      - ENVIRONMENT=prod
+      - DATABASE_URL=postgresql://product-postgres.c.retailhub-services.internal:5432/product_prod_db
+      - LOG_LEVEL=WARN
+      - API_ENDPOINT=https://api.retailhub.com
+
+commonLabels:
+  environment: prod
+  team: retailhub
+  tier: production
+  criticality: high

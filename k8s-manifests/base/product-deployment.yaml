@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service
+  labels:
+    app: product-service
+    service: product
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: product-service
+  template:
+    metadata:
+      labels:
+        app: product-service
+        service: product
+    spec:
+      containers:
+      - name: product
+        image: us-central1-docker.pkg.dev/retailhub-services/retailhub/product@sha256:f843573ae3a0d75823f62a1b97068442a9983c8bf5bf4be2a179647fe20b0184
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5002
+          name: http
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+        envFrom:
+        - configMapRef:
+            name: product-config
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5002
+          initialDelaySeconds: 10
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service
+  labels:
+    app: product-service
+    service: product
+spec:
+  selector:
+    app: product-service
+  ports:
+  - port: 5002
+    targetPort: 5002
+    name: http
+  type: ClusterIP

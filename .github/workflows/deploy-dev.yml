@@ -5,22 +5,50 @@ on:
     branches: [ develop ]
 
 env:
-  GCP_PROJECT_ID: retailhub-services
-  ARTIFACT_REGISTRY: us-central1-docker.pkg.dev
+  GCP_PROJECT: retailhub-services
+  REGISTRY: us-central1-docker.pkg.dev
+  CLUSTER: retailhub-dev-cluster
+  ZONE: us-central1-a
+  NAMESPACE: dev
 
 jobs:
-  build-and-push:
+  deploy:
     runs-on: ubuntu-latest
+    
     steps:
     - uses: actions/checkout@v4
-    - run: echo "${{ secrets.GCP_SA_KEY }}" | base64 -d > /tmp/gcp-key.json
+    
     - uses: google-github-actions/auth@v2
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
+    
     - uses: google-github-actions/setup-gcloud@v2
-    - run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY }}
-    - run: |
+    
+    - run: gcloud auth configure-docker ${{ env.REGISTRY }}
+    
+    - name: Build and push Docker images (DEV)
+      run: |
+        COMMIT_SHA=$(git rev-parse --short HEAD)
         for service in order payment loyalty user product; do
-          docker build -t ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/retailhub/$service:dev-${{ github.sha }} $service-service/
-          docker push ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/retailhub/$service:dev-${{ github.sha }}
+          docker build -t ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/retailhub/$service:dev-${COMMIT_SHA} $service-service/
+          docker push ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/retailhub/$service:dev-${COMMIT_SHA}
         done
+    
+    - name: Get GKE credentials
+      run: |
+        gcloud container clusters get-credentials ${{ env.CLUSTER }} \
+          --zone=${{ env.ZONE }} --project=${{ env.GCP_PROJECT }}
+    
+    - name: Install Kustomize
+      run: |
+        curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+        sudo mv kustomize /usr/local/bin/
+    
+    - name: Deploy to DEV with Kustomize
+      run: kubectl apply -k k8s-manifests/overlays/dev/
+    
+    - name: Verify rollout
+      run: kubectl rollout status deployment -n ${{ env.NAMESPACE }} --timeout=300s
+    
+    - name: Check pods
+      run: kubectl get pods -n ${{ env.NAMESPACE }}

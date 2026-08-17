@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Base resources (no namespace, no replicas)
+resources:
+  - order-deployment.yaml
+  - payment-deployment.yaml
+  - loyalty-deployment.yaml
+  - user-deployment.yaml
+  - product-deployment.yaml
+
+# Common labels for all resources
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+  retailhub.io/version: "1.0"

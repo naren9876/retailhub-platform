@@ -1,0 +1,71 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reference base manifests
+bases:
+  - ../../base/
+
+# Set namespace
+namespace: dev
+
+# Override replicas for DEV (1 each)
+replicas:
+  - name: order-service
+    count: 1
+  - name: payment-service
+    count: 1
+  - name: loyalty-service
+    count: 1
+  - name: user-service
+    count: 1
+  - name: product-service
+    count: 1
+
+# ConfigMaps for DEV environment
+configMapGenerator:
+  - name: order-config
+    behavior: create
+    literals:
+      - ENVIRONMENT=dev
+      - DATABASE_URL=postgresql://order-postgres.c.retailhub-services.internal:5432/order_db
+      - LOG_LEVEL=DEBUG
+      - API_ENDPOINT=http://api-dev.internal
+      - PAYMENT_SERVICE_URL=http://payment-service.payment:5004
+      - LOYALTY_SERVICE_URL=http://loyalty-service.loyalty:5006
+  - name: payment-config
+    behavior: create
+    literals:
+      - ENVIRONMENT=dev
+      - DATABASE_URL=postgresql://payment-postgres.c.retailhub-services.internal:5432/payment_db
+      - LOG_LEVEL=DEBUG
+      - API_ENDPOINT=http://api-dev.internal
+      - ORDER_SERVICE_URL=http://order-service.order:5003
+  - name: loyalty-config
+    behavior: create
+    literals:
+      - ENVIRONMENT=dev
+      - DATABASE_URL=postgresql://loyalty-postgres.c.retailhub-services.internal:5432/loyalty_db
+      - LOG_LEVEL=DEBUG
+      - API_ENDPOINT=http://api-dev.internal
+      - ORDER_SERVICE_URL=http://order-service.order:5003
+      - USER_SERVICE_URL=http://user-service.user:5001
+  - name: user-config
+    behavior: create
+    literals:
+      - ENVIRONMENT=dev
+      - DATABASE_URL=postgresql://user-postgres.c.retailhub-services.internal:5432/user_db
+      - LOG_LEVEL=DEBUG
+      - API_ENDPOINT=http://api-dev.internal
+  - name: product-config
+    behavior: create
+    literals:
+      - ENVIRONMENT=dev
+      - DATABASE_URL=postgresql://product-postgres.c.retailhub-services.internal:5432/product_db
+      - LOG_LEVEL=DEBUG
+      - API_ENDPOINT=http://api-dev.internal
+
+# Common labels
+commonLabels:
+  environment: dev
+  team: retailhub
+  tier: development

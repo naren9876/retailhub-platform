@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loyalty-service
+  labels:
+    app: loyalty-service
+    service: loyalty
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: loyalty-service
+  template:
+    metadata:
+      labels:
+        app: loyalty-service
+        service: loyalty
+    spec:
+      containers:
+      - name: loyalty
+        image: us-central1-docker.pkg.dev/retailhub-services/retailhub/loyalty@sha256:fcf5cff9e35006427d55d07ede78ef4f3971c2773cca7fb8d50a53bc7df322fc
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5006
+          name: http
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+        envFrom:
+        - configMapRef:
+            name: loyalty-config
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5006
+          initialDelaySeconds: 10
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loyalty-service
+  labels:
+    app: loyalty-service
+    service: loyalty
+spec:
+  selector:
+    app: loyalty-service
+  ports:
+  - port: 5006
+    targetPort: 5006
+    name: http
+  type: ClusterIP

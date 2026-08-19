@@ -36,6 +36,48 @@ jobs:
           docker build -t ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/retailhub/$service:dev-${COMMIT_SHA} $service-service/
           docker push ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/retailhub/$service:dev-${COMMIT_SHA}
         done
+        echo "COMMIT_SHA=${COMMIT_SHA}" >> $GITHUB_ENV
+    
+    - name: Update Kustomize manifests with new image tags
+      run: |
+        COMMIT_SHA=$(git rev-parse --short HEAD)
+        cd k8s-manifests/overlays/dev
+        
+        # Update kustomization.yaml with new image tags
+        cat > kustomization.yaml << KUST
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: dev
+
+resources:
+  - ../../base/
+
+images:
+  - name: order-service
+    newName: ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/retailhub/order-service
+    newTag: dev-${COMMIT_SHA}
+  - name: payment-service
+    newName: ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/retailhub/payment-service
+    newTag: dev-${COMMIT_SHA}
+  - name: product-service
+    newName: ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/retailhub/product-service
+    newTag: dev-${COMMIT_SHA}
+  - name: user-service
+    newName: ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/retailhub/user-service
+    newTag: dev-${COMMIT_SHA}
+  - name: loyalty-service
+    newName: ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/retailhub/loyalty-service
+    newTag: dev-${COMMIT_SHA}
+KUST
+    
+    - name: Commit updated manifests
+      run: |
+        git config user.email "github-actions@github.com"
+        git config user.name "GitHub Actions"
+        git add k8s-manifests/overlays/dev/kustomization.yaml
+        git commit -m "chore: Update DEV image tags to dev-$(git rev-parse --short HEAD)" || echo "No changes to commit"
+        git push origin develop
     
     - name: Get GKE credentials
       run: |

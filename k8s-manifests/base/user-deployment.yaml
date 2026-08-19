@@ -2,9 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: user-service
+  namespace: dev
   labels:
     app: user-service
-    service: user
 spec:
   replicas: 1
   selector:
@@ -14,44 +14,16 @@ spec:
     metadata:
       labels:
         app: user-service
-        service: user
     spec:
       containers:
       - name: user
-        image: us-central1-docker.pkg.dev/retailhub-services/retailhub/user@sha256:a44a308dd00b40fbe552cbfaef689d8d626cc5b484617c53dfaca9f956147a18
-        imagePullPolicy: IfNotPresent
+        image: us-central1-docker.pkg.dev/retailhub-services/retailhub/user-service:dev-7523ed5
+        imagePullPolicy: Always
         ports:
         - containerPort: 5001
-          name: http
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "100m"
-          limits:
-            memory: "128Mi"
-            cpu: "200m"
-        envFrom:
-        - configMapRef:
-            name: user-config
         livenessProbe:
           httpGet:
             path: /health
             port: 5001
           initialDelaySeconds: 10
           periodSeconds: 10
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: user-service
-  labels:
-    app: user-service
-    service: user
-spec:
-  selector:
-    app: user-service
-  ports:
-  - port: 5001
-    targetPort: 5001
-    name: http
-  type: ClusterIP

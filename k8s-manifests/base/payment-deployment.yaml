@@ -2,9 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: payment-service
+  namespace: dev
   labels:
     app: payment-service
-    service: payment
 spec:
   replicas: 1
   selector:
@@ -14,44 +14,16 @@ spec:
     metadata:
       labels:
         app: payment-service
-        service: payment
     spec:
       containers:
       - name: payment
-        image: us-central1-docker.pkg.dev/retailhub-services/retailhub/payment@sha256:528bea386f049d7332e76fd2e6ae608e596eda1e54dbeacb5b122b6b1a3483e1
-        imagePullPolicy: IfNotPresent
+        image: us-central1-docker.pkg.dev/retailhub-services/retailhub/payment-service:dev-7523ed5
+        imagePullPolicy: Always
         ports:
         - containerPort: 5004
-          name: http
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "100m"
-          limits:
-            memory: "128Mi"
-            cpu: "200m"
-        envFrom:
-        - configMapRef:
-            name: payment-config
         livenessProbe:
           httpGet:
             path: /health
             port: 5004
           initialDelaySeconds: 10
           periodSeconds: 10
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: payment-service
-  labels:
-    app: payment-service
-    service: payment
-spec:
-  selector:
-    app: payment-service
-  ports:
-  - port: 5004
-    targetPort: 5004
-    name: http
-  type: ClusterIP

@@ -36,56 +36,12 @@ jobs:
           docker build -t ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/retailhub/$service:dev-$COMMIT_SHA $service-service/
           docker push ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/retailhub/$service:dev-$COMMIT_SHA
         done
-        echo "IMAGE_TAG=dev-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-    
-    - name: Update image tags in Kustomize
-      run: |
-        python3 << 'PYTHON'
-import yaml
-import os
-
-commit_sha = os.popen('git rev-parse --short HEAD').read().strip()
-image_tag = f"dev-{commit_sha}"
-registry = "${{ env.REGISTRY }}"
-project = "${{ env.GCP_PROJECT }}"
-
-kust_file = "k8s-manifests/overlays/dev/kustomization.yaml"
-
-with open(kust_file, 'r') as f:
-    kust = yaml.safe_load(f)
-
-# Update image tags
-services = ['order-service', 'payment-service', 'product-service', 'user-service', 'loyalty-service']
-ports = {'order-service': '5003', 'payment-service': '5004', 'product-service': '5002', 'user-service': '5001', 'loyalty-service': '5006'}
-
-for service in services:
-    for img in kust['images']:
-        if img['name'] == service:
-            img['newName'] = f"{registry}/{project}/retailhub/{service}"
-            img['newTag'] = image_tag
-
-with open(kust_file, 'w') as f:
-    yaml.dump(kust, f, default_flow_style=False, sort_keys=False)
-
-print(f"Updated image tags to {image_tag}")
-PYTHON
-    
-    - name: Commit and push updated manifests
-      run: |
-        git config user.email "github-actions@github.com"
-        git config user.name "GitHub Actions"
-        git add k8s-manifests/overlays/dev/kustomization.yaml
-        git commit -m "chore: Update image tags to dev-$(git rev-parse --short HEAD)" || true
-        git push origin develop
     
     - name: Get GKE credentials
-      run: |
-        gcloud container clusters get-credentials ${{ env.CLUSTER }} --zone=${{ env.ZONE }} --project=${{ env.GCP_PROJECT }}
+      run: gcloud container clusters get-credentials ${{ env.CLUSTER }} --zone=${{ env.ZONE }} --project=${{ env.GCP_PROJECT }}
     
     - name: Install Kustomize
-      run: |
-        curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-        sudo mv kustomize /usr/local/bin/
+      run: curl -s https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh | bash && sudo mv kustomize /usr/local/bin/
     
     - name: Deploy to DEV
       run: kubectl apply -k k8s-manifests/overlays/dev/ --validate=false

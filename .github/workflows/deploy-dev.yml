@@ -24,6 +24,9 @@ jobs:
     
     - uses: google-github-actions/setup-gcloud@v2
     
+    - name: Install gke-gcloud-auth-plugin
+      run: gcloud components install gke-gcloud-auth-plugin
+    
     - run: gcloud auth configure-docker ${{ env.REGISTRY }}
     
     - name: Build and push Docker images (DEV)
@@ -45,7 +48,7 @@ jobs:
         sudo mv kustomize /usr/local/bin/
     
     - name: Deploy to DEV with Kustomize
-      run: kubectl apply -k k8s-manifests/overlays/dev/
+      run: kubectl apply -k k8s-manifests/overlays/dev/ --validate=false
     
     - name: Verify rollout
       run: kubectl rollout status deployment -n ${{ env.NAMESPACE }} --timeout=300s

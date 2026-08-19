@@ -1,0 +1,5 @@
+Flask==2.3.3
+google-cloud-pubsub==2.18.0
+sqlalchemy==2.0.20
+pymysql==1.1.0
+google-cloud-sql-connector==1.4.3

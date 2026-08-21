@@ -22,3 +22,55 @@ images:
   - name: loyalty-service
     newName: us-central1-docker.pkg.dev/retailhub-services/retailhub/loyalty-service
     newTag: dev
+
+patchesJson6902:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: order-service
+    patch: |-
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value:
+        - name: gcr-json-key
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: payment-service
+    patch: |-
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value:
+        - name: gcr-json-key
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: product-service
+    patch: |-
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value:
+        - name: gcr-json-key
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: user-service
+    patch: |-
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value:
+        - name: gcr-json-key
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: loyalty-service
+    patch: |-
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value:
+        - name: gcr-json-key

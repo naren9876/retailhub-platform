@@ -9,26 +9,28 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Database connection
+db_conn = None
+
 def get_db_connection():
-    conn = psycopg2.connect(
-        host=os.environ.get('DB_HOST'),
-        user=os.environ.get('DB_USER', 'postgres'),
-        password=os.environ.get('DB_PASSWORD', 'postgres'),
-        database=os.environ.get('DB_NAME', 'retailhub')
-    )
-    return conn
+    global db_conn
+    try:
+        if db_conn is None:
+            db_conn = psycopg2.connect(
+                host=os.environ.get('DB_HOST'),
+                user=os.environ.get('DB_USER', 'postgres'),
+                password=os.environ.get('DB_PASSWORD', 'postgres'),
+                database=os.environ.get('DB_NAME', 'retailhub'),
+                connect_timeout=5
+            )
+        return db_conn
+    except Exception as e:
+        db_conn = None
+        raise e
 
 @app.route('/health')
 def health():
-    logger.info("Health check")
-    try:
-        conn = get_db_connection()
-        conn.close()
-        return {"status": "user-service running", "database": "connected"}, 200
-    except Exception as e:
-        logger.error(f"Database error: {e}")
-        return {"status": "user-service running", "database": "disconnected", "error": str(e)}, 200
+    # Fast health check - don't connect to DB
+    return {"status": "user-service running"}, 200
 
 @app.route('/users', methods=['GET'])
 def get_users():
@@ -36,10 +38,9 @@ def get_users():
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT id, name, email, phone FROM users ORDER BY id")
+        cur.execute("SELECT id, name, email, phone FROM users ORDER BY id LIMIT 100")
         users = cur.fetchall()
         cur.close()
-        conn.close()
         return {"users": [dict(u) for u in users]}, 200
     except Exception as e:
         logger.error(f"Error fetching users: {e}")
@@ -54,7 +55,6 @@ def get_user(user_id):
         cur.execute("SELECT id, name, email, phone FROM users WHERE id = %s", (user_id,))
         user = cur.fetchone()
         cur.close()
-        conn.close()
         if user:
             return {"user": dict(user)}, 200
         return {"error": "User not found"}, 404
@@ -76,7 +76,6 @@ def create_user():
         user_id = cur.fetchone()[0]
         conn.commit()
         cur.close()
-        conn.close()
         return {"user_id": user_id, "email": data.get('email')}, 201
     except Exception as e:
         logger.error(f"Error creating user: {e}")

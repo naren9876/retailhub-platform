@@ -3,31 +3,32 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import logging
 import os
-from datetime import datetime
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+db_conn = None
+
 def get_db_connection():
-    conn = psycopg2.connect(
-        host=os.environ.get('DB_HOST'),
-        user=os.environ.get('DB_USER', 'postgres'),
-        password=os.environ.get('DB_PASSWORD', 'postgres'),
-        database=os.environ.get('DB_NAME', 'retailhub')
-    )
-    return conn
+    global db_conn
+    try:
+        if db_conn is None:
+            db_conn = psycopg2.connect(
+                host=os.environ.get('DB_HOST'),
+                user=os.environ.get('DB_USER', 'postgres'),
+                password=os.environ.get('DB_PASSWORD', 'postgres'),
+                database=os.environ.get('DB_NAME', 'retailhub'),
+                connect_timeout=5
+            )
+        return db_conn
+    except Exception as e:
+        db_conn = None
+        raise e
 
 @app.route('/health')
 def health():
-    logger.info("Health check")
-    try:
-        conn = get_db_connection()
-        conn.close()
-        return {"status": "order-service running", "database": "connected"}, 200
-    except Exception as e:
-        logger.error(f"Database error: {e}")
-        return {"status": "order-service running", "database": "disconnected", "error": str(e)}, 200
+    return {"status": "order-service running"}, 200
 
 @app.route('/orders', methods=['GET'])
 def get_orders():
@@ -35,10 +36,9 @@ def get_orders():
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT id, user_id, total, status, created_at FROM orders ORDER BY id DESC")
+        cur.execute("SELECT id, user_id, total, status, created_at FROM orders ORDER BY id DESC LIMIT 100")
         orders = cur.fetchall()
         cur.close()
-        conn.close()
         return {"orders": [dict(o) for o in orders]}, 200
     except Exception as e:
         logger.error(f"Error fetching orders: {e}")
@@ -53,12 +53,10 @@ def get_order(order_id):
         cur.execute("SELECT id, user_id, total, status, created_at FROM orders WHERE id = %s", (order_id,))
         order = cur.fetchone()
         cur.close()
-        conn.close()
         if order:
             return {"order": dict(order)}, 200
         return {"error": "Order not found"}, 404
     except Exception as e:
-        logger.error(f"Error fetching order: {e}")
         return {"error": str(e)}, 500
 
 @app.route('/orders', methods=['POST'])
@@ -74,7 +72,6 @@ def create_order():
         )
         order_id = cur.fetchone()[0]
         
-        # Insert order items
         for item in data.get('items', []):
             cur.execute(
                 "INSERT INTO order_items (order_id, product_id, quantity) VALUES (%s, %s, %s)",
@@ -83,7 +80,6 @@ def create_order():
         
         conn.commit()
         cur.close()
-        conn.close()
         return {"order_id": order_id, "status": "pending"}, 201
     except Exception as e:
         logger.error(f"Error creating order: {e}")

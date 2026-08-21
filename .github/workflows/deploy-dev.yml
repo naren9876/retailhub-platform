@@ -10,7 +10,7 @@ permissions:
 
 env:
   GCP_PROJECT_ID: retailhub-services
-  GCP_WORKLOAD_IDENTITY_PROVIDER: projects/427578819714/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+  GCP_WORKLOAD_IDENTITY_PROVIDER: projects/427578819714/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider
   GCP_SERVICE_ACCOUNT: github-actions@retailhub-services.iam.gserviceaccount.com
   ARTIFACT_REGISTRY: us-central1-docker.pkg.dev
   ENVIRONMENT: dev

@@ -3,10 +3,13 @@ kind: Deployment
 metadata:
   name: loyalty-service
   namespace: dev
-  labels:
-    app: loyalty-service
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: loyalty-service
@@ -15,9 +18,12 @@ spec:
       labels:
         app: loyalty-service
     spec:
+      serviceAccountName: loyalty-service
+      imagePullSecrets:
+      - name: gcr-json-key
       containers:
       - name: loyalty
-        image: us-central1-docker.pkg.dev/retailhub-services/retailhub/loyalty-service:dev-7523ed5
+        image: loyalty-service
         imagePullPolicy: Always
         ports:
         - containerPort: 5006
@@ -26,4 +32,15 @@ spec:
             path: /health
             port: 5006
           initialDelaySeconds: 10
-          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5006
+          initialDelaySeconds: 5
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi

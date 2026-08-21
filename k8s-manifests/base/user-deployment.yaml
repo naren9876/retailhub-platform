@@ -3,10 +3,13 @@ kind: Deployment
 metadata:
   name: user-service
   namespace: dev
-  labels:
-    app: user-service
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: user-service
@@ -15,9 +18,12 @@ spec:
       labels:
         app: user-service
     spec:
+      serviceAccountName: user-service
+      imagePullSecrets:
+      - name: gcr-json-key
       containers:
       - name: user
-        image: us-central1-docker.pkg.dev/retailhub-services/retailhub/user-service:dev-7523ed5
+        image: user-service
         imagePullPolicy: Always
         ports:
         - containerPort: 5001
@@ -26,4 +32,15 @@ spec:
             path: /health
             port: 5001
           initialDelaySeconds: 10
-          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5001
+          initialDelaySeconds: 5
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi

@@ -9,16 +9,16 @@ resources:
 images:
   - name: order-service
     newName: us-central1-docker.pkg.dev/retailhub-services/retailhub/order-service
-    newTag: dev-0f71e12
+    newTag: dev
   - name: payment-service
     newName: us-central1-docker.pkg.dev/retailhub-services/retailhub/payment-service
-    newTag: dev-0f71e12
+    newTag: dev
   - name: product-service
     newName: us-central1-docker.pkg.dev/retailhub-services/retailhub/product-service
-    newTag: dev-0f71e12
+    newTag: dev
   - name: user-service
     newName: us-central1-docker.pkg.dev/retailhub-services/retailhub/user-service
-    newTag: dev-0f71e12
+    newTag: dev
   - name: loyalty-service
     newName: us-central1-docker.pkg.dev/retailhub-services/retailhub/loyalty-service
-    newTag: dev-0f71e12
+    newTag: dev

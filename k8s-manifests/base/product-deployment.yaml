@@ -3,10 +3,13 @@ kind: Deployment
 metadata:
   name: product-service
   namespace: dev
-  labels:
-    app: product-service
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: product-service
@@ -15,9 +18,12 @@ spec:
       labels:
         app: product-service
     spec:
+      serviceAccountName: product-service
+      imagePullSecrets:
+      - name: gcr-json-key
       containers:
       - name: product
-        image: us-central1-docker.pkg.dev/retailhub-services/retailhub/product-service:dev-7523ed5
+        image: product-service
         imagePullPolicy: Always
         ports:
         - containerPort: 5002
@@ -26,4 +32,15 @@ spec:
             path: /health
             port: 5002
           initialDelaySeconds: 10
-          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5002
+          initialDelaySeconds: 5
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi

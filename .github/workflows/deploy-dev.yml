@@ -1,53 +1,95 @@
-name: Deploy to DEV
+name: Deploy RetailHub Dev
 
 on:
   push:
     branches: [ develop ]
 
+permissions:
+  contents: read
+  id-token: write
+
 env:
-  GCP_PROJECT: retailhub-services
-  REGISTRY: us-central1-docker.pkg.dev
-  CLUSTER: retailhub-dev-cluster
-  ZONE: us-central1-a
-  NAMESPACE: dev
+  GCP_PROJECT_ID: retailhub-services
+  GCP_WORKLOAD_IDENTITY_PROVIDER: projects/427578819714/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+  GCP_SERVICE_ACCOUNT: github-actions@retailhub-services.iam.gserviceaccount.com
+  ARTIFACT_REGISTRY: us-central1-docker.pkg.dev
+  ENVIRONMENT: dev
+  CLUSTER_NAME: retailhub-dev-cluster
+  CLUSTER_ZONE: us-central1-a
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v3
     
-    - uses: google-github-actions/auth@v2
+    - id: auth
+      name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
       with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+        service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
     
-    - uses: google-github-actions/setup-gcloud@v2
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
     
-    - name: Install gke-gcloud-auth-plugin
-      run: gcloud components install gke-gcloud-auth-plugin
-    
-    - run: gcloud auth configure-docker ${{ env.REGISTRY }}
-    
-    - name: Build and push Docker images
+    - name: Get GKE Credentials
       run: |
-        COMMIT_SHA=$(git rev-parse --short HEAD)
-        for service in order payment loyalty user product; do
-          docker build -t ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/retailhub/$service:dev-$COMMIT_SHA $service-service/
-          docker push ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/retailhub/$service:dev-$COMMIT_SHA
+        gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
+          --zone=${{ env.CLUSTER_ZONE }} \
+          --project=${{ env.GCP_PROJECT_ID }}
+    
+    - name: Configure Docker
+      run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY }}
+    
+    - name: Build and Push Images (AMD64)
+      run: |
+        for service in order payment product user loyalty; do
+          echo "Building ${service}-service for linux/amd64..."
+          docker build --platform linux/amd64 \
+            -t ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/retailhub/${service}-service:dev \
+            ./${service}-service/
+          
+          echo "Pushing ${service}-service..."
+          docker push ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/retailhub/${service}-service:dev
+          
+          echo "✅ ${service}-service pushed"
         done
     
-    - name: Get GKE credentials
-      run: gcloud container clusters get-credentials ${{ env.CLUSTER }} --zone=${{ env.ZONE }} --project=${{ env.GCP_PROJECT }}
+    - name: Create Namespace and Service Accounts
+      run: |
+        kubectl create namespace dev --dry-run=client -o yaml | kubectl apply -f -
+        kubectl label namespace dev name=dev --overwrite
+        
+        for service in order payment product user loyalty; do
+          kubectl create serviceaccount ${service}-service -n dev --dry-run=client -o yaml | kubectl apply -f -
+          
+          kubectl annotate serviceaccount ${service}-service -n dev \
+            iam.gke.io/gcp-service-account=retailhub-k8s-workload@retailhub-services.iam.gserviceaccount.com \
+            --overwrite
+        done
+        
+        echo "✅ Namespace and service accounts ready"
     
-    - name: Install Kustomize
-      run: curl -s https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh | bash && sudo mv kustomize /usr/local/bin/
+    - name: Apply Kubernetes Manifests
+      run: |
+        kubectl apply -k k8s-manifests/overlays/dev/ --validate=false
+        echo "✅ Manifests applied"
     
-    - name: Deploy to DEV
-      run: kubectl apply -k k8s-manifests/overlays/dev/ --validate=false
+    - name: Restart Deployments
+      run: |
+        kubectl rollout restart deployment -n dev
+        echo "✅ Deployments restarted"
     
-    - name: Verify rollout
-      run: kubectl rollout status deployment -n ${{ env.NAMESPACE }} --timeout=300s
+    - name: Verify Rollout
+      run: |
+        kubectl rollout status deployment -n dev --timeout=5m
+        echo "✅ All deployments rolled out successfully"
     
-    - name: Check pods
-      run: kubectl get pods -n ${{ env.NAMESPACE }}
+    - name: Verify Pod Health
+      run: |
+        kubectl get pods -n dev
+        kubectl get deployments -n dev
+        echo "✅ All pods verified"
+
